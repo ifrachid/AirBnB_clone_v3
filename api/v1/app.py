@@ -1,35 +1,58 @@
 #!/usr/bin/python3
-"""Flask server (variable app)
 """
+Create an app instance
+"""
+import os
+from flask import Flask
+from flask import jsonify
+from flask_cors import CORS
 
-
-from flask import Flask, jsonify
-from models import storage
-from os import getenv
-from api.v1.views import app_views
+from . import models
+from .views import app_views
 
 app = Flask(__name__)
+CORS(app, resources=r"/*", origins=["0.0.0.0"])
+
 app.register_blueprint(app_views)
-app.url_map.strict_slashes = False
 
 
 @app.teardown_appcontext
-def downtear(self):
-    '''Status of your API'''
-    storage.close()
+def close_db(e=None):
+    """
+    Registers a function to be called after each request and app processs
+    """
+    models.storage.close()
 
 
 @app.errorhandler(404)
-def page_not_found(error):
-    '''return render_template'''
-    return jsonify('error='Not found'), 404
+def not_found(e):
+    """
+    Handling not found (404)
+    Args:
+        e: Exception
+    Returns:
+        JSON
+    """
+    status_code = str(e).split()[0]
+    message = e.description if "Not found" in e.description else "Not found"
+    return jsonify({"error": message}), status_code
+
+
+@app.errorhandler(400)
+def bad_request(e):
+    """
+    Handling bad request (400)
+    Args:
+        e: Exception
+    Returns:
+        JSON
+    """
+    status_code = str(e).split()[0]
+    message = e.description
+    return jsonify({"error": message}), status_code
 
 
 if __name__ == "__main__":
-    host = getenv('HBNB_API_HOST')
-    port = getenv('HBNB_API_PORT')
-    if not host:
-        host = '0.0.0.0'
-    if not port:
-        port = '5000'
+    host = os.getenv("HBNB_API_HOST", "0.0.0.0")
+    port = os.getenv("HBNB_API_PORT", 5000)
     app.run(host=host, port=port, threaded=True)
